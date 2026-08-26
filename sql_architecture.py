@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 
 # Local production database connection string
-db_url = 'postgresql+psycopg2://postgres:postgres01@localhost:5432/postgres'
+db_url = 'postgresql+psycopg2://YOUR_DATABASE_USER:YOUR_DATABASE_PASSWORD@YOUR_DATABASE_HOST:5432/YOUR_DATABASE_NAME'
 engine = create_engine(db_url)
 
 # === 🧠 BUSINESS INTELLIGENCE LAYER: ENGINEERING PERMANENT SQL VIEW ===
