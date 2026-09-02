@@ -2,3 +2,5 @@
 .venv/
 .ipynb_checkpoints/
 *.ipynb
+data_raw/customer_churn_dataset.csv
+

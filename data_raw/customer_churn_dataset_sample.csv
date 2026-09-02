@@ -1,0 +1,101 @@
+CustomerID,CustomerSegment,AcquisitionChannel,TenureMonths,SupportCalls,TotalSpend_USD,ChurnStatus
+CUST_00001,Premium,Organic,33,1,3995.92,0
+CUST_00002,Basic,Email Marketing,38,7,133.98,1
+CUST_00003,Standard,Facebook Ads,44,7,3105.34,0
+CUST_00004,Standard,Email Marketing,48,1,3295.54,0
+CUST_00005,Premium,Organic,2,5,1731.41,0
+CUST_00006,Standard,Facebook Ads,28,7,1881.95,0
+CUST_00007,Standard,Facebook Ads,37,3,3481.34,0
+CUST_00008,Basic,Facebook Ads,46,6,214.51,1
+CUST_00009,Basic,Email Marketing,44,7,300.08,0
+CUST_00010,Standard,Organic,36,7,3651.29,0
+CUST_00011,Premium,Facebook Ads,10,7,3645.43,0
+CUST_00012,Basic,Email Marketing,30,7,332.79,1
+CUST_00013,Standard,Email Marketing,7,7,3148.6,0
+CUST_00014,Premium,Email Marketing,47,7,4239.6,0
+CUST_00015,Premium,Email Marketing,10,7,4136.69,0
+CUST_00016,Premium,Google Search,16,1,2851.67,0
+CUST_00017,Basic,Organic,10,0,1513.48,0
+CUST_00018,Standard,Google Search,35,3,2207.48,0
+CUST_00019,Standard,Facebook Ads,27,2,4217.49,0
+CUST_00020,Standard,Email Marketing,10,3,1785.63,0
+CUST_00021,Standard,Organic,2,0,2370.19,0
+CUST_00022,Premium,Email Marketing,30,2,819.42,0
+CUST_00023,Basic,Google Search,44,1,2530.99,1
+CUST_00024,Basic,Facebook Ads,29,3,2254.71,0
+CUST_00025,Premium,Google Search,11,2,1846.38,0
+CUST_00026,Standard,Google Search,23,2,1295.98,0
+CUST_00027,Standard,Google Search,21,7,2083.94,0
+CUST_00028,Premium,Google Search,15,0,4298.48,0
+CUST_00029,Basic,Google Search,2,5,346.29,1
+CUST_00030,Premium,Facebook Ads,40,4,2567.73,0
+CUST_00031,Standard,Google Search,7,4,569.47,0
+CUST_00032,Standard,Google Search,42,1,2353.83,0
+CUST_00033,Standard,Google Search,17,4,423.52,0
+CUST_00034,Standard,Facebook Ads,4,1,1173.23,0
+CUST_00035,Standard,Organic,30,0,4172.64,0
+CUST_00036,Basic,Facebook Ads,44,5,351.46,1
+CUST_00037,Standard,Facebook Ads,48,6,3971.12,0
+CUST_00038,Premium,Organic,27,5,2697.39,1
+CUST_00039,Premium,Facebook Ads,11,1,664.53,0
+CUST_00040,Basic,Organic,2,6,252.34,1
+CUST_00041,Standard,Google Search,9,2,2511.73,0
+CUST_00042,Standard,Organic,10,3,251.62,0
+CUST_00043,Standard,Google Search,41,1,3802.06,0
+CUST_00044,Basic,Organic,22,5,69.69,0
+CUST_00045,Premium,Google Search,44,2,4183.45,0
+CUST_00046,Premium,Organic,22,3,1780.06,0
+CUST_00047,Basic,Organic,13,2,2881.87,0
+CUST_00048,Basic,Email Marketing,3,2,516.3,0
+CUST_00049,Basic,Facebook Ads,2,3,3846.68,0
+CUST_00050,Standard,Email Marketing,35,2,4348.45,0
+CUST_00051,Basic,Organic,20,0,3357.39,0
+CUST_00052,Standard,Organic,23,UNKNOWN,4381.48,0
+CUST_00053,Basic,Email Marketing,28,5,334.24,0
+CUST_00054,Premium,Facebook Ads,12,5,2495.07,0
+CUST_00055,Basic,Facebook Ads,24,1,1750.78,0
+CUST_00056,Premium,Facebook Ads,21,7,617.16,0
+CUST_00057,Standard,Facebook Ads,23,7,4106.32,0
+CUST_00058,Basic,Email Marketing,38,5,78.89,1
+CUST_00059,Standard,Organic,43,3,882.29,0
+CUST_00060,Basic,Email Marketing,26,5,111.86,1
+CUST_00061,Standard,Organic,27,6,1076.01,0
+CUST_00062,Standard,Organic,22,1,1542.15,0
+CUST_00063,Basic,Organic,15,5,390.29,1
+CUST_00064,Standard,Email Marketing,26,0,2541.34,0
+CUST_00065,Standard,Google Search,28,5,2969.78,1
+CUST_00066,Standard,Organic,9,5,2668.44,0
+CUST_00067,Standard,Organic,1,0,3444.12,0
+CUST_00068,Standard,Facebook Ads,14,7,2390.0,0
+CUST_00069,Premium,Facebook Ads,7,2,1585.43,0
+CUST_00070,Premium,Organic,6,6,3246.46,0
+CUST_00071,Standard,Email Marketing,3,2,2543.51,0
+CUST_00072,Standard,Organic,22,5,1532.51,0
+CUST_00073,Standard,Facebook Ads,42,7,729.57,0
+CUST_00074,Standard,Google Search,24,4,2378.48,0
+CUST_00075,Standard,Facebook Ads,47,4,4417.49,0
+CUST_00076,Basic,Organic,32,5,281.2,1
+CUST_00077,Premium,Organic,34,6,2892.85,0
+CUST_00078,Premium,Google Search,28,2,2384.51,0
+CUST_00079,Standard,Google Search,36,5,1732.29,0
+CUST_00080,Premium,Google Search,39,2,3320.03,0
+CUST_00081,Premium,Facebook Ads,18,4,4243.23,0
+CUST_00082,Standard,Google Search,30,2,961.59,1
+CUST_00083,Basic,Email Marketing,35,0,1457.82,0
+CUST_00084,Basic,Email Marketing,10,5,100.98,1
+CUST_00085,Standard,Organic,22,0,862.58,0
+CUST_00086,Standard,Google Search,11,3,1127.24,0
+CUST_00087,Standard,Email Marketing,30,5,3216.93,0
+CUST_00088,Basic,Email Marketing,6,3,3364.88,0
+CUST_00089,Basic,Google Search,8,2,1035.52,0
+CUST_00090,Standard,Facebook Ads,36,2,2969.64,0
+CUST_00091,Standard,Email Marketing,1,7,2416.43,0
+CUST_00092,Premium,Facebook Ads,10,3,4368.07,0
+CUST_00093,Basic,Organic,17,1,2155.3,0
+CUST_00094,Basic,Facebook Ads,18,4,311.95,0
+CUST_00095,Basic,Facebook Ads,25,7,264.67,1
+CUST_00096,Premium,Facebook Ads,26,1,881.56,0
+CUST_00097,Premium,Facebook Ads,47,5,3269.98,0
+CUST_00098,Standard,Google Search,26,3,2386.28,0
+CUST_00099,Basic,Google Search,29,3,3494.23,0
+CUST_00100,Premium,Email Marketing,14,6,3326.54,0
