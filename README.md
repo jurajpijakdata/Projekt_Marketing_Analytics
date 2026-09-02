@@ -1,21 +1,26 @@
-# Customer Marketing & Retention Analytics 📊🇺🇸
+# 📊 Customer Marketing & Retention Analytics - System Simulation Framework
 
-## 1. Project Overview & Business Value
-This end-to-end analytics platform investigates customer churn behavioral metrics for a high-volume B2C e-commerce system. By integrating Python data cleansing, a permanent PostgreSQL storage layer, and an interactive Power BI frontend, this project bridges data engineering with commercial C-suite decision making.
+An end-to-end data engineering and business intelligence framework designed to simulate high-volume customer behavior patterns within a B2C application layer. This system utilizes a dedicated synthetic generator to inject specific behavioral anomalies and churn vectors, proving that the Python data cleansing layer, PostgreSQL warehouse tables, and Power BI dashboards can accurately capture, reconstruct, and surface target business signals.
 
-**Key Financial Insight:** The architecture reveals a massive **Financial Efficiency Gap within the Basic Customer Segment**. Active users generate substantial lifetime metrics, while churned users collapse under critical thresholds.
-
----
-
-## 2. Interactive Performance Demo
-Below is a live interaction capture of the production dashboard, showcasing dynamic filtering across high-risk retention zones and customer value tiers.
+## 🚀 Interactive Performance Demo
+Below is a live interaction capture of the simulated production dashboard, demonstrating dynamic filtering across pre-calculated retention risk zones and metrics.
 
 ![Dashboard Interaction Demo](dashboard_demo.gif)
 
 ---
 
-## 3. Data Engineering & Core SQL Architecture
-The core business intelligence logic is engineered directly within the PostgreSQL server as a permanent database view (`v_marketing_retention_analytics`). This guarantees real-time automated data refreshes without straining Power BI memory.
+## 🔗 Algorithmic Data Generation & Disclosure (Rule 5)
+* **Pipeline Mechanism:** All analytical data is programmatically provisioned using the native script `marketing_data_generator.py`. 
+* **Injected Anomalies:** To test the robustness of the ingestion pipelines, the engine injects explicit string corruptions (`'UNKNOWN'`) into numerical vectors and missing markers (`'NaN'`) into financial attributes.
+* **Deterministic Churn Signal:** The script seeds randomness to guarantee a fixed benchmark layout across test environments:
+  * **Global Churn Target:** Enforced at exactly **16.94%** (representing 2,118 lost profiles out of a 12,500 customer matrix).
+  * **Injected Basic Segment Risk:** An intentional high-churn loop simulates a **35.57%** customer attrition rate triggered specifically when `SupportCalls >= 5` inside the `Basic` customer tier.
+* **Reviewer Sample Standard:** A pre-packaged, lightweight pool named **`customer_churn_dataset_sample.csv` (100 rows)** is available in the `data_raw` folder to verify cross-platform pipeline execution on public repositories without storage overhead.
+
+---
+
+## 🏗️ Data Engineering & Analytical SQL Architecture
+The relational semantic intelligence layer is engineered directly within the PostgreSQL database server as an automated, cached database view (`v_marketing_retention_analytics`). This architecture serves as a strict test design model — proving that raw ingestion streams are transformed back into deterministic percentages without straining frontend memory layers:
 
 ```sql
 CREATE OR REPLACE VIEW public.v_marketing_retention_analytics AS
@@ -27,7 +32,6 @@ SELECT
     "SupportCalls" AS support_calls,
     "TotalSpend_USD" AS total_spend,
     
-    -- Segmenting customers by behavioral churn risk tiers
     CASE 
         WHEN "ChurnStatus" = 1 THEN 'Churned'
         ELSE 'Active'
@@ -44,21 +48,51 @@ SELECT
     -- Spend Efficiency (Average dollar metric per active month)
     CASE 
         WHEN "TenureMonths" > 0 THEN ROUND(CAST("TotalSpend_USD" / "TenureMonths" AS numeric), 2)
-        ELSE 0
+        ELSE 0.0
     END AS monthly_spend_efficiency
 FROM public.marketing_churn_raw;
 ```
 
 ---
 
-## 4. Key Executive Metrics (DAX Core)
-The frontend layer leverages precise DAX measures to track operational health:
-* **Global Churn Rate:** `16.94%` (Critical warning threshold)
-* **Total Customer Base:** `12,500` active profiles
-* **Total Churned Accounts:** `2,118` lost profiles
+## 🛠️ Tech Stack & Operational Configuration
+- **Simulation Layer:** Python standard libs executing reproducible pseudorandom array distribution mapping.
+- **Data Engineering:** Python (Pandas) sanitizing textual anomalies and casting objects to stable data models.
+- **Database Storage Cluster:** PostgreSQL (hosted via Supabase cloud architecture) leveraging streaming chunks.
+- **BI Reporting Layer:** Power BI Desktop tailored with strict algorithmic validation tests and precise DAX performance metrics.
 
 ---
 
-## 5. Strategic Recommendations for the C-Suite
-1. **Automate Basic Risk Interventions:** Implement instant automated loyalty triggers for any `Basic` segment profile whose `Monthly Spend Efficiency` drops below standard deviations.
-2. **Prioritize High-Attention Premium Accounts:** Flag all premium accounts with 4+ customer support hangups directly in CRM to prevent massive high-ticket revenue loss.
+## 🚀 Quick Start (Clone & Run Standard)
+
+### 1. Deploy the Independent Software Stack
+Install the standardized software dependencies inside your execution terminal:
+```powershell
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment Secrets
+Replicate the structural template `.env.example` into a local file named `.env` in the root folder and input your private database targets (fully restricted via `.gitignore`):
+```text
+DB_USER=postgres
+DB_PASSWORD=your_secure_password
+DB_HOST=your_supabase_host_string
+DB_PORT=6543
+DB_NAME=postgres
+```
+
+### 3. Generate the Simulated Dataset Payload
+Execute the synthetic behavioral data distribution script to write raw matrices locally:
+```powershell
+python marketing_data_generator.py
+```
+
+### 4. Verify Ingestion & Analytical Reporting Layers
+Launch the automated cleaning and analytics pipeline over the local datasets to evaluate performance parameters:
+```powershell
+python marketing_analytics.py
+python marketing_bi_layer.py
+```
+
+---
+*Engineered under the UpDataLogic Simulation Framework for verifiable, transparent, and reproducible system testing models.*
