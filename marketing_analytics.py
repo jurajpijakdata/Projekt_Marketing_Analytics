@@ -34,15 +34,24 @@ try:
         except (ValueError, TypeError):
             return None
 
-    # High-precision Monetary Parser for Customer Spend to eliminate binary float drifting
+        # High-precision Monetary Parser for Customer Spend to eliminate binary float drifting
     def parse_monetary_spend(value):
         if pd.isna(value) or str(value).strip() in ('', 'NaN', 'UNKNOWN'):
             return None
-        clean_str = str(value).strip().replace(',', '.')
+        
+        clean_str = str(value).strip().replace('$', '').replace('€', '').strip()
+        
+        # Handling financial grouping (e.g., "2,500.75" -> "2500.75")
+        if ',' in clean_str and '.' in clean_str:
+            clean_str = clean_str.replace(',', '')
+        elif ',' in clean_str and '.' not in clean_str:
+            clean_str = clean_str.replace(',', '.')
+            
         try:
             return Decimal(clean_str)
         except InvalidOperation:
             return None
+
 
     # Apply non-destructive parsing matrices across data metrics
     df['SupportCalls_Clean'] = df['SupportCalls'].apply(parse_support_calls)

@@ -9,15 +9,16 @@ Below is a live interaction capture of the simulated production dashboard, demon
 
 ---
 
-## 🏗️ Architecture Design: Enterprise Dual-Mode & Failover Protection
-To maximize showcase reliability across both cloud-connected and local offline evaluation environments, the framework implements a strict **Dual-Mode Data Pipeline**:
-1. **Production Mode:** Automatically checks for your secure `.env` file to map incoming analytical feeds directly to a remote **PostgreSQL** cluster.
-2. **Local Fallback Engine:** If network constraints, cloud downtime, or missing environment files are encountered, the pipeline gracefully intercepts the connection fault (`OperationalError`). It instantly routes workloads to an isolated local **SQLite** relational file instance (`local_portfolio.db`), ensuring flawless local execution and presentation.
+## 🏗️ Architecture Design: Enterprise Dual-Mode & Automated Test Automation
+To maximize repository reliability and data product safety across enterprise ecosystems, the framework implements a strict multi-layered engineering and validation layout:
+1. **Automated Unit Testing (`pytest`):** Core transformation algorithms are fully decoupled into pure isolated functions, verified against edge-case numeric parameters, string formatting anomalies, and mathematical grouping patterns to eliminate accounting drifting.
+2. **Declarative Schema Validation (`pandera`):** The data ingestion pipeline is armed with a semantic quality schema matrix. It actively checks row matrices for missing indicators (`Null`), duplicates, out-of-bound variables, and structural variations before writing records to target infrastructure tables.
+3. **Failover Connection Routing:** The framework evaluates endpoints dynamically. If remote production systems are unreachable, workloads route automatically to an isolated local file instance (`local_portfolio.db`) ensuring runtime continuity.
 
 ---
 
 ## 🔗 Algorithmic Data Generation & Disclosure
-* **Pipeline Mechanism:** All analytical data is programmatically provisioned using the native script `marketing_data_generator.py` and saved inside the `data_raw` storage layer. 
+* **Pipeline Mechanism:** All analytical data is programmatically provisioned using the native script `marketing_data_gen.py` and saved inside the `data_raw` storage layer. 
 * **Injected Anomalies:** To test the robustness of the ingestion pipelines, the engine injects explicit string corruptions (`'UNKNOWN'`) into numerical vectors and missing markers (`'NaN'`) into financial attributes.
 * **Deterministic Churn Signal:** The script seeds randomness to guarantee a fixed benchmark layout across test environments:
   * **Global Churn Target:** Enforced at exactly **16.94%** (representing 2,118 lost profiles out of a 12,500 customer matrix).
@@ -64,9 +65,29 @@ FROM public.marketing_churn_raw;
 
 ## 🛠️ Tech Stack & Operational Configuration
 - **Simulation Layer:** Python standard libs executing reproducible pseudorandom array distribution mapping.
-- **Data Engineering:** Python (Pandas) sanitizing textual anomalies and casting objects to stable data models.
+- **Data Engineering:** Python (Pandas) sanitizing textual anomalies, removing grouping symbols, and executing type validation schemas via `pandera.pandas`.
+- **Testing Suite:** `pytest` executing parametrized table-driven unit tests to simulate and intercept data edge cases.
 - **Database Storage Cluster:** PostgreSQL (with automated failover configuration to a local standalone SQLite engine).
 - **BI Reporting Layer:** Power BI Desktop tailored with strict algorithmic validation tests and precise DAX performance metrics.
+
+---
+
+## 📁 Repository Directory Structure
+
+```text
+Projekt_Marketing_Analytics/
+│
+├── data_raw/
+│   ├── customer_churn_dataset.csv         # Full Production Raw Records
+│   └── customer_churn_dataset_sample.csv  # Custom QA Sample Framework
+│
+├── marketing_ingestion.py                 # ETL Processing, Ingestion & Pandera In-line Validation
+├── marketing_bi_layer.py                  # BI Layer Transformation Engine
+├── marketing_data_gen.py                  # Synthetic Data Generation Script
+├── test_marketing.py                      # Automated Pytest Suite & Test Simulator
+├── requirements.txt                       # Locked Software Dependency Scheme
+└── README.md                              # Enterprise Systems Documentation
+```
 
 ---
 
@@ -78,20 +99,16 @@ Install the standardized software dependencies inside your execution terminal:
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Secrets (Optional for Cloud Production)
-To connect to a live database, replicate the structural template `.env.example` into a local file named `.env` and input your private database targets (fully restricted via `.gitignore`). *If omitted, the scripts will run smoothly using the automated local file storage backup engine.*
-```text
-DB_USER=postgres
-DB_PASSWORD=your_secure_password
-DB_HOST=your_supabase_host_string
-DB_PORT=6543
-DB_NAME=postgres
+### 2. Run Automated Code Testing
+Execute the validation suite with the built-in crash-test vectors to verify compliance:
+```powershell
+pytest test_marketing.py -v
 ```
 
 ### 3. Generate the Simulated Dataset Payload
 Execute the synthetic behavioral data distribution script to write raw matrices into the `data_raw` directory:
 ```powershell
-python marketing_data_generator.py
+python marketing_data_gen.py
 ```
 
 ### 4. Verify Ingestion & Analytical Reporting Layers
