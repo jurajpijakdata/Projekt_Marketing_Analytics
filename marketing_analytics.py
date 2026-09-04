@@ -41,7 +41,7 @@ try:
         
         clean_str = str(value).strip().replace('$', '').replace('€', '').strip()
         
-        # Handling financial grouping (e.g., "2,500.75" -> "2500.75")
+        # Handling financial grouping 
         if ',' in clean_str and '.' in clean_str:
             clean_str = clean_str.replace(',', '')
         elif ',' in clean_str and '.' not in clean_str:

@@ -9,11 +9,12 @@ Below is a live interaction capture of the simulated production dashboard, demon
 
 ---
 
-## 🏗️ Architecture Design: Enterprise Dual-Mode & Automated Test Automation
-To maximize repository reliability and data product safety across enterprise ecosystems, the framework implements a strict multi-layered engineering and validation layout:
-1. **Automated Unit Testing (`pytest`):** Core transformation algorithms are fully decoupled into pure isolated functions, verified against edge-case numeric parameters, string formatting anomalies, and mathematical grouping patterns to eliminate accounting drifting.
-2. **Declarative Schema Validation (`pandera`):** The data ingestion pipeline is armed with a semantic quality schema matrix. It actively checks row matrices for missing indicators (`Null`), duplicates, out-of-bound variables, and structural variations before writing records to target infrastructure tables.
-3. **Failover Connection Routing:** The framework evaluates endpoints dynamically. If remote production systems are unreachable, workloads route automatically to an isolated local file instance (`local_portfolio.db`) ensuring runtime continuity.
+## 🏗️ Architecture Design: Self-Healing & Automated Verification Layout
+To maximize repository reliability and data product safety across enterprise ecosystems, the framework implements a strict multi-layered engineering, defensive parsing, and validation layout:
+1. **Self-Healing Pre-Load Layer:** Implementing automated data-type correction and formatting healing (e.g., dynamically removing alphanumeric grouping separators, text parameters like 'UNKNOWN' or 'NaN', and financial currency symbols like `$` or `€`) prior to execution. This eliminates type mismatch crashes and guarantees structural data alignment against unforeseen upstream schema drift.
+2. **Automated Unit Testing (`pytest`):** Core transformation algorithms are fully decoupled into pure isolated functions, verified against table-driven test vectors, edge-case currency parameters, and structural data noise inputs to prevent tichý drift premenných.
+3. **Declarative Schema Validation (`pandera`):** The data ingestion pipeline is armed with a semantic quality schema matrix. It actively checks row matrices for missing indicators (`Null`), duplicates, out-of-bound variables, and structural variations before writing records to target infrastructure tables.
+4. **Failover Connection Routing:** The framework evaluates endpoints dynamically. If remote production systems are unreachable, workloads route automatically to an isolated local file instance (`local_portfolio.db`) ensuring runtime continuity.
 
 ---
 
@@ -65,7 +66,7 @@ FROM public.marketing_churn_raw;
 
 ## 🛠️ Tech Stack & Operational Configuration
 - **Simulation Layer:** Python standard libs executing reproducible pseudorandom array distribution mapping.
-- **Data Engineering:** Python (Pandas) sanitizing textual anomalies, removing grouping symbols, and executing type validation schemas via `pandera.pandas`.
+- **Data Engineering:** Python (Pandas) utilizing strict inline self-healing data normalizers and structural type formatting via `pandera.pandas`.
 - **Testing Suite:** `pytest` executing parametrized table-driven unit tests to simulate and intercept data edge cases.
 - **Database Storage Cluster:** PostgreSQL (with automated failover configuration to a local standalone SQLite engine).
 - **BI Reporting Layer:** Power BI Desktop tailored with strict algorithmic validation tests and precise DAX performance metrics.
@@ -81,7 +82,7 @@ Projekt_Marketing_Analytics/
 │   ├── customer_churn_dataset.csv         # Full Production Raw Records
 │   └── customer_churn_dataset_sample.csv  # Custom QA Sample Framework
 │
-├── marketing_ingestion.py                 # ETL Processing, Ingestion & Pandera In-line Validation
+├── marketing_ingestion.py                 # ETL Ingestion Pipeline with Integrated Self-Healing & Pandera Shields
 ├── marketing_bi_layer.py                  # BI Layer Transformation Engine
 ├── marketing_data_gen.py                  # Synthetic Data Generation Script
 ├── test_marketing.py                      # Automated Pytest Suite & Test Simulator
