@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 import pandas as pd
 import pandera.pandas as pa
 from pathlib import Path
@@ -7,13 +8,31 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 
-print("🚀 Starting UpDataLogic Marketing Database Ingestion Pipeline (Self-Healing & Validated)...")
+# =====================================================================
+# 1. ENTERPRISE LOGGING CONFIGURATION (Module 6 Standard)
+# =====================================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - [UpDataLogic Ingestion] - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout) # Clean routing to pipeline orchestrators
+    ]
+)
+
+logging.info("🚀 Initializing UpDataLogic Marketing Ingestion Layer (Production Observability Mode)...")
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "data_raw" / "customer_churn_dataset.csv"
 ENV_FILE = BASE_DIR / ".env"
 
-# 1. Define Strict Data Quality Shield using Pandera
+# Metrics Trackers for first-class alerting outputs
+METRICS_TRACKER = {
+    "total_records_extracted": 0,
+    "successfully_healed_records": 0,
+    "rejected_records_critical": 0
+}
+
+# Define Data Quality Schema
 marketing_ingest_schema = pa.DataFrameSchema({
     "CustomerID": pa.Column(str, nullable=False, unique=True),
     "CustomerSegment": pa.Column(str, pa.Check.isin(["Basic", "Standard", "Premium"]), nullable=False),
@@ -23,7 +42,7 @@ marketing_ingest_schema = pa.DataFrameSchema({
     "ChurnStatus": pa.Column(int, pa.Check.isin([0, 1]), nullable=False)
 })
 
-# 2. Establish Database Connection (With Active Operational Fallback Logic)
+# Database Connection Context with Active Fallback
 try:
     if ENV_FILE.exists():
         load_dotenv(dotenv_path=ENV_FILE, override=True)
@@ -34,46 +53,49 @@ try:
         DB_NAME = os.getenv("DB_NAME")
         
         if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_NAME]):
-            raise ValueError("Incomplete cloud credentials.")
+            raise ValueError("Incomplete cloud warehouse credentials.")
             
         connection_string = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         engine = create_engine(connection_string)
         with engine.connect() as conn:
             pass
-        print("🔌 Connection Status: [ONLINE] Remote PostgreSQL Warehouse Connected.")
+        logging.info("🔌 Connection Status: [ONLINE] Remote PostgreSQL Connected.")
     else:
-        raise FileNotFoundError("Local config .env file missing.")
+        raise FileNotFoundError("Environment secure .env descriptor target missing.")
 
 except Exception as db_error:
-    print(f"⚠️ Production DB Offline or Network Issue detected: {db_error}")
-    print("🔄 Activating Portfolio Architecture Fallback Mode (Local Storage Engine)...")
-    
-    # SQLite local engine backup strategy to guarantee flawless showcase execution
+    logging.warning(f"⚠️ Production Data Core Offline or Network Issue: {db_error}")
+    logging.info("🔄 Activating Portfolio Architecture Fallback Mode (Local Standalone Engine)...")
     connection_string = f"sqlite:///{BASE_DIR / 'local_portfolio.db'}"
     engine = create_engine(connection_string)
-    print("🔌 Connection Status: [LOCAL ENGINE] Active Fallback SQLite Context Deployed.")
+    logging.info("🔌 Connection Status: [LOCAL ENGINE] Active Fallback SQLite Context Deployed.")
 
 # =====================================================================
-# ETL INGESTION STAGE
+# ETL PIPELINE & DEFENSIVE ERROR HANDLING
 # =====================================================================
 try:
     if not DATA_FILE.exists():
         raise FileNotFoundError(f"Extraction halted. Source dataset missing at: {DATA_FILE}")
 
-    print(f"📥 1. Extracting raw records from: {DATA_FILE.name}...")
+    logging.info(f"📥 1. EXTRACTION: Reading raw database log payload from: {DATA_FILE.name}")
     df = pd.read_csv(DATA_FILE, dtype={"CustomerID": str}, low_memory=False)
     
-    print("⏳ 2. Executing self-healing data type normalization pipeline...")
+    METRICS_TRACKER["total_records_extracted"] = len(df)
+    logging.info(f"✅ EXTRACTION SUCCESS: Pulled {METRICS_TRACKER['total_records_extracted']:,} transactional records into memory.")
     
-    def self_heal_support_calls(value):
+    logging.info("⏳ 2. TRANSFORMATION: Executing pure self-healing data normalizers...")
+    
+    def self_heal_support_calls(value, row_idx):
         if pd.isna(value) or str(value).strip() in ('', 'UNKNOWN'):
             return None
         try:
             return int(float(str(value).strip()))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            # First-class error visibility: flag it, don't guess a silent zero
+            logging.warning(f"🔧 Low-Level Type Slip on Row {row_idx} [SupportCalls='{value}']. Coercing to NULL. Reason: {e}")
             return None
 
-    def self_heal_marketing_spend(value):
+    def self_heal_marketing_spend(value, row_idx):
         if pd.isna(value) or str(value).strip() in ('', 'NaN', 'UNKNOWN'):
             return None
         
@@ -85,26 +107,46 @@ try:
             
         clean_str = clean_str.replace('$', '').replace('€', '').strip()
         try:
-            return float(Decimal(clean_str).quantize(Decimal("0.01")))
-        except InvalidOperation:
+            parsed_decimal = Decimal(clean_str).quantize(Decimal("0.01"))
+            # Fail-fast constraint validation
+            if parsed_decimal < 0:
+                raise ValueError(f"Negative spend anomaly detected: {parsed_decimal}")
+            return float(parsed_decimal)
+        except (InvalidOperation, ValueError) as err:
+            # We track the rejection actively as a first-class operational output
+            logging.error(f"🚨 Data Quality Breach on Row {row_idx} [TotalSpend_USD='{value}']. Reason: {err}")
             return None
 
-    df['SupportCalls'] = df['SupportCalls'].apply(self_heal_support_calls)
-    df['TotalSpend_USD'] = df['TotalSpend_USD'].apply(self_heal_marketing_spend)
+    # Execute transformations with index injection for robust troubleshooting logs
+    df['SupportCalls'] = [self_heal_support_calls(val, idx) for idx, val in enumerate(df['SupportCalls'])]
+    df['TotalSpend_USD'] = [self_heal_marketing_spend(val, idx) for idx, val in enumerate(df['TotalSpend_USD'])]
     
-    print("🛡️ 3. Running declarative data quality checks via Pandera schema evaluation...")
+    # Calculate operational telemetry states
+    df['data_quality_status'] = df[['TotalSpend_USD', 'SupportCalls']].isnull().any(axis=1).map({True: 'UNKNOWN', False: 'CLEAN'})
+    
+    METRICS_TRACKER["rejected_records_critical"] = int(df['TotalSpend_USD'].isna().sum())
+    METRICS_TRACKER["successfully_healed_records"] = METRICS_TRACKER["total_records_extracted"] - METRICS_TRACKER["rejected_records_critical"]
+
+    logging.info("🛡️ 3. VALIDATION: Running declarative structural data quality tests via Pandera...")
     validated_df = marketing_ingest_schema.validate(df)
     
-    validated_df['data_quality_status'] = validated_df[['TotalSpend_USD', 'SupportCalls']].isnull().any(axis=1).map({True: 'UNKNOWN', False: 'CLEAN'})
+    # Alerting Threshold Execution Layer (Fail-fast engine rule)
+    rejection_rate = (METRICS_TRACKER["rejected_records_critical"] / METRICS_TRACKER["total_records_extracted"]) * 100
+    logging.info(f"📊 DATA QUALITY METRICS: Clean/Healed: {METRICS_TRACKER['successfully_healed_records']:,} | Quarantined/NULL: {METRICS_TRACKER['rejected_records_critical']:,} ({rejection_rate:.2f}%)")
     
-    print(f"📤 4. Stream loading {len(validated_df):,} validated records into database layer...")
+    # Alert constraint threshold if critical errors compromise more than 5.0% of the payload
+    if rejection_rate > 5.0:
+        raise ValueError(f"Pipeline processing halted. Rejection threshold breached: {rejection_rate:.2f}% (Limit: 5.0%)")
+
+    logging.info(f"📤 4. LOADING: Streaming verified fact matrices into warehouse target tables...")
     validated_df.to_sql('marketing_churn_raw', engine, if_exists='replace', index=False)
     
-    print("\n=== 🎉 PIPELINE SUCCESS: ALL DATA PROVISIONED SUCCESSFULLY ===")
+    logging.info("🏆 PIPELINE RUN COMPLETION: STATUS 0 [SUCCESS]. Financial telemetry secured successfully.\n")
+    sys.exit(0) # Guarantee clean scheduler tracking exit code parameters
 
 except pa.errors.SchemaError as schema_fault:
-    print(f"\n❌ DATA QUALITY BREACH DETECTED BY PANDERA:\n{schema_fault}", file=sys.stderr)
-    sys.exit(1)
-except Exception as e:
-    print(f"\n❌ PIPELINE CRITICAL FAILURE: {e}", file=sys.stderr)
+    logging.critical(f"❌ PIPELINE STOPPED VIA PANDERA STRUCTURAL SHIELD: {schema_fault}")
+    sys.exit(1) # Enforce strict exit 1 error flag parameters for orchestrators
+except Exception as fatal_error:
+    logging.critical(f"❌ PIPELINE RUN CRITICAL FAILURE: {fatal_error}")
     sys.exit(1)
