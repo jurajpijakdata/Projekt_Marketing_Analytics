@@ -9,12 +9,15 @@ Below is a live interaction capture of the simulated production dashboard, demon
 
 ---
 
-## 🏗️ Architecture Design: Self-Healing & Automated Verification Layout
-To maximize repository reliability and data product safety across enterprise ecosystems, the framework implements a strict multi-layered engineering, defensive parsing, and validation layout:
-1. **Self-Healing Pre-Load Layer:** Implementing automated data-type correction and formatting healing (e.g., dynamically removing alphanumeric grouping separators, text parameters like 'UNKNOWN' or 'NaN', and financial currency symbols like `$` or `€`) prior to execution. This eliminates type mismatch crashes and guarantees structural data alignment against unforeseen upstream schema drift.
-2. **Automated Unit Testing (`pytest`):** Core transformation algorithms are fully decoupled into pure isolated functions, verified against table-driven test vectors, edge-case currency parameters, and structural data noise inputs to prevent tichý drift premenných.
-3. **Declarative Schema Validation (`pandera`):** The data ingestion pipeline is armed with a semantic quality schema matrix. It actively checks row matrices for missing indicators (`Null`), duplicates, out-of-bound variables, and structural variations before writing records to target infrastructure tables.
-4. **Failover Connection Routing:** The framework evaluates endpoints dynamically. If remote production systems are unreachable, workloads route automatically to an isolated local file instance (`local_portfolio.db`) ensuring runtime continuity.
+## 🏗️ Architecture Design: Enterprise Observability & Self-Healing Layout
+To meet the rigorous data quality, error boundaries, and monitoring standards required in production-grade data platforms, the framework deploys a strict multi-layered engineering and monitoring architecture:
+
+1. **Enterprise Logging Framework (`logging`):** Replaced legacy, unmonitored standard stdout text prints with a formal Python logging machine. Events, warning tracks, and subsystem errors are systematically piped across precise structural states (`INFO`, `WARNING`, `CRITICAL`) to allow direct parsing by cloud orchestrators.
+2. **First-Class Rejection Metrics & Quarantine:** Malformed textual data corruptions are dynamically intercepted. Instead of masks using silent zero conversions that distort accounting aggregates downstream, failed parameters are cleanly cast to explicit `NULL` types and tracked as a primary first-class data quality metric.
+3. **Automated Alerting Thresholds (Fail-Fast):** Incorporates an active runtime processing boundary constraint. If the data ingestion pipeline encounters a critical row rejection rate greater than **5.0%** of the batch payload volume, the entire framework halts execution immediately and throws a hard termination state (`sys.exit(1)`) to trigger modern orchestrator alerts.
+4. **Self-Healing Pre-Load Layer:** Coerces incoming data structure alignments (e.g., dynamically removing alphanumeric grouping separators or currency text elements) prior to schema evaluation, eliminating unexpected type-mismatch crashes.
+5. **Decoupled Unit Testing (`pytest`):** Core transformation math and data cleaning algorithms are fully decoupled into an independent logic module (`marketing_parser.py`) to eliminate environmental connection dependencies, allowing rapid parameterized testing execution.
+6. **Declarative Schema Validation (`pandera`):** Screens the fully aligned, cleaned, and healed dataframe for missing attributes, duplicate entity constraints, and boundary keys before writing records downstream.
 
 ---
 
@@ -24,51 +27,13 @@ To maximize repository reliability and data product safety across enterprise eco
 * **Deterministic Churn Signal:** The script seeds randomness to guarantee a fixed benchmark layout across test environments:
   * **Global Churn Target:** Enforced at exactly **16.94%** (representing 2,118 lost profiles out of a 12,500 customer matrix).
   * **Injected Basic Segment Risk:** An intentional high-churn loop simulates a **35.57%** customer attrition rate triggered specifically when `SupportCalls >= 5` inside the `Basic` customer tier.
-* **Reviewer Sample Standard:** A pre-packaged, lightweight pool named **`customer_churn_dataset_sample.csv` (100 rows)** is available in the `data_raw` folder to verify cross-platform pipeline execution on public repositories without storage overhead.
 
 ---
 
-## 🏗️ Data Engineering & Analytical SQL Architecture
-The relational semantic intelligence layer is engineered directly within the database engine as an automated, calculated relational analytical framework. It serves as a strict test design model — proving that raw ingestion streams are transformed back into deterministic percentages without straining frontend memory layers:
-
-```sql
-CREATE OR REPLACE VIEW public.v_marketing_retention_analytics AS
-SELECT 
-    "CustomerID" AS customer_id,
-    "CustomerSegment" AS customer_segment,
-    "AcquisitionChannel" AS acquisition_channel,
-    "TenureMonths" AS tenure_months,
-    "SupportCalls" AS support_calls,
-    "TotalSpend_USD" AS total_spend,
-    
-    CASE 
-        WHEN "ChurnStatus" = 1 THEN 'Churned'
-        ELSE 'Active'
-    END AS customer_status,
-    
-    -- Advanced behavioral categorization
-    CASE 
-        WHEN "ChurnStatus" = 1 THEN 'Lost Customer (Already Left)'
-        WHEN "SupportCalls" >= 5 AND "CustomerSegment" = 'Basic' THEN 'Critical Risk Zone'
-        WHEN "SupportCalls" >= 4 THEN 'High Attention Needed'
-        ELSE 'Safe & Loyal Customer'
-    END AS retention_risk_tier,
-    
-    -- Spend Efficiency (Average dollar metric per active month)
-    CASE 
-        WHEN "TenureMonths" > 0 THEN ROUND(CAST("TotalSpend_USD" / "TenureMonths" AS numeric), 2)
-        ELSE 0.0
-    END AS monthly_spend_efficiency
-FROM public.marketing_churn_raw;
-```
-
----
-
-## 🛠️ Tech Stack & Operational Configuration
-- **Simulation Layer:** Python standard libs executing reproducible pseudorandom array distribution mapping.
-- **Data Engineering:** Python (Pandas) utilizing strict inline self-healing data normalizers and structural type formatting via `pandera.pandas`.
+## 🛠️ Tech Stack & Pipeline Configurations
+- **Data Engineering:** Python (Pandas) utilizing strict standalone self-healing data normalizers, robust `logging` stream handlers, and structural schema validation wrappers via `pandera.pandas`. High-precision monetary metrics utilize `decimal.Decimal` logic to prevent floating-point drifting.
 - **Testing Suite:** `pytest` executing parametrized table-driven unit tests to simulate and intercept data edge cases.
-- **Database Storage Cluster:** PostgreSQL (with automated failover configuration to a local standalone SQLite engine).
+- **Database Storage Cluster:** PostgreSQL (with automated fallback connection routing to a local standalone SQLite file database).
 - **BI Reporting Layer:** Power BI Desktop tailored with strict algorithmic validation tests and precise DAX performance metrics.
 
 ---
@@ -82,11 +47,12 @@ Projekt_Marketing_Analytics/
 │   ├── customer_churn_dataset.csv         # Full Production Raw Records
 │   └── customer_churn_dataset_sample.csv  # Custom QA Sample Framework
 │
-├── marketing_ingestion.py                 # ETL Ingestion Pipeline with Integrated Self-Healing & Pandera Shields
-├── marketing_bi_layer.py                  # BI Layer Transformation Engine
-├── marketing_data_gen.py                  # Synthetic Data Generation Script
-├── test_marketing.py                      # Automated Pytest Suite & Test Simulator
-├── requirements.txt                       # Locked Software Dependency Scheme
+├── marketing_parser.py                    # Pure Decoupled Parsing & Business Logic (100% Testable)
+├── marketing_ingestion.py                 # ETL Pipeline with Integrated Self-Healing, Logging & Pandera
+├── marketing_bi_layer.py                  # BI Semantic Transformation Layer with Production Logging Handlers
+├── marketing_data_gen.py                  # Synthetic Data Generation Script with Structural Enterprise Logs
+├── test_marketing.py                      # Parametrized Pytest Suite Suite & Automated Crash Simulator
+├── requirements.txt                       # Locked Software Dependency Layout Scheme
 └── README.md                              # Enterprise Systems Documentation
 ```
 

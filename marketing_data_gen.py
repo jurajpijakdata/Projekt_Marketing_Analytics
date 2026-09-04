@@ -1,17 +1,25 @@
 import os
 import sys
 import random
+import logging
 import pandas as pd
 from pathlib import Path
 
-print("🚀 Starting UpDataLogic Marketing Data Generation Engine...")
+# =====================================================================
+# ENTERPRISE LOGGING CONFIGURATION (Module 6 Standard)
+# =====================================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - [UpDataLogic Generator] - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+logging.info("🚀 Starting UpDataLogic Marketing Data Generation Engine...")
 
 # =====================================================================
-# DYNAMIC PATH RESOLUTION (Cross-Platform Execution Compatibility)
+# DYNAMIC PATH RESOLUTION
 # =====================================================================
 BASE_DIR = Path(__file__).resolve().parent
-
-# Target folder 'data_raw' and output filename
 OUTPUT_DIR = BASE_DIR / "data_raw"
 OUTPUT_FILE = OUTPUT_DIR / "customer_churn_dataset.csv"
 
@@ -22,7 +30,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # SYNTHETIC DATA GENERATION SIMULATION
 # =====================================================================
 try:
-    print("⏳ Generating 12,500 customer behavior records with injected anomalies...")
+    logging.info("⏳ Generating 12,500 customer behavior records with injected anomalies...")
     
     # Seeding randomness to guarantee reproducible results across environments
     random.seed(2026)
@@ -60,9 +68,10 @@ try:
     
     # Exporting the raw payload
     df.to_csv(OUTPUT_FILE, index=False)
-    print(f"\n=== 🎉 SUCCESS: Raw marketing records stored at: {OUTPUT_FILE.name} ===")
-    print(f"Total Rows Generated: {len(df):,}")
+    logging.info(f"=== 🎉 SUCCESS: Raw marketing records stored at: {OUTPUT_FILE.name} ===")
+    logging.info(f"Total Rows Generated: {len(df):,}")
+    sys.exit(0)
 
 except Exception as e:
-    print(f"\n❌ GENERATION CRITICAL FAILURE: {e}", file=sys.stderr)
+    logging.critical(f"❌ GENERATION CRITICAL FAILURE: {e}")
     sys.exit(1)
