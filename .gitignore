@@ -1,6 +1,9 @@
 .env
+*.db
+*.sqlite
+*.sqlite3
+__pycache__/
+*.pyc
+.pytest_cache/
 .venv/
-.ipynb_checkpoints/
-*.ipynb
-data_raw/customer_churn_dataset.csv
-
+venv/

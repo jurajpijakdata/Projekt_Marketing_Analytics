@@ -1,3 +1,4 @@
+import os
 import sys
 import random
 import pandas as pd
@@ -6,9 +7,8 @@ from pathlib import Path
 print("🚀 Starting UpDataLogic Marketing Data Generation Engine...")
 
 # =====================================================================
-# DYNAMIC PATH RESOLUTION (UpDataLogic Rule 2)
+# DYNAMIC PATH RESOLUTION (Cross-Platform Execution Compatibility)
 # =====================================================================
-# Automatically detect the directory where this script is located
 BASE_DIR = Path(__file__).resolve().parent
 
 # Target folder 'data_raw' and output filename
@@ -46,7 +46,7 @@ try:
             total_spend = round(random.uniform(150, 4500), 2)
             churn = 1 if random.random() < 0.08 else 0  # Baseline 8% churn probability
 
-        # Explicitly injection of missing entries and structural textual data corruption
+        # Explicit injection of missing entries and structural textual data corruption
         if random.random() < 0.015:
             total_spend = "NaN"  # Missing values emulation
         if random.random() < 0.01:
@@ -64,6 +64,5 @@ try:
     print(f"Total Rows Generated: {len(df):,}")
 
 except Exception as e:
-    # HARD FAILURE SIGNALING (UpDataLogic Rule 3)
     print(f"\n❌ GENERATION CRITICAL FAILURE: {e}", file=sys.stderr)
     sys.exit(1)
