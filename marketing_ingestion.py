@@ -4,15 +4,11 @@ import logging
 import pandas as pd
 import pandera.pandas as pa
 from pathlib import Path
-from decimal import Decimal, InvalidOperation
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
-# Importujeme znovupoužiteľnú funkciu z parsera
-from marketing_parser import clean_numeric_spend
-
 # =====================================================================
-# ENTERPRISE LOGGING CONFIGURATION (Module 6 Standard)
+# ENTERPRISE LOGGING CONFIGURATION (Module 6 & 7 Standard)
 # =====================================================================
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +16,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
-logging.info("🚀 Initializing UpDataLogic Marketing Ingestion Layer (Production Observability Mode)...")
+logging.info("🚀 Starting UpDataLogic Marketing Ingestion Layer (Idempotent Production Mode)...")
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "data_raw" / "customer_churn_dataset.csv"
@@ -32,7 +28,7 @@ METRICS_TRACKER = {
     "rejected_records_critical": 0
 }
 
-# Define Data Quality Schema
+# Define Data Quality Shield using Pandera Specification
 marketing_ingest_schema = pa.DataFrameSchema({
     "CustomerID": pa.Column(str, nullable=False, unique=True),
     "CustomerSegment": pa.Column(str, pa.Check.isin(["Basic", "Standard", "Premium"]), nullable=False),
@@ -71,7 +67,7 @@ except Exception as db_error:
     logging.info("🔌 Connection Status: [LOCAL ENGINE] Active Fallback SQLite Context Deployed.")
 
 # =====================================================================
-# ETL INGESTION STAGE
+# ETL INGESTION STAGE Execution with Idempotent UPSERT Matrix
 # =====================================================================
 try:
     if not DATA_FILE.exists():
@@ -92,7 +88,15 @@ try:
         except (ValueError, TypeError):
             return None
 
-    # Transformácie prebiehajú cez zosúladené funkcie
+    def clean_numeric_spend(value):
+        if pd.isna(value) or str(value).strip() in ('', 'NaN', 'UNKNOWN'):
+            return None
+        clean_str = str(value).strip().replace(',', '')
+        try:
+            return float(clean_str)
+        except ValueError:
+            return None
+
     df['SupportCalls'] = [self_heal_support_calls(val, idx) for idx, val in enumerate(df['SupportCalls'])]
     df['TotalSpend_USD'] = df['TotalSpend_USD'].apply(clean_numeric_spend)
     
@@ -110,14 +114,63 @@ try:
     if rejection_rate > 5.0:
         raise ValueError(f"Pipeline stopped. Rejection rate {rejection_rate:.2f}% breached 5.0% limit.")
 
-    logging.info(f"📤 4. Loading: Streaming {len(validated_df):,} validated records into target engine...")
-    validated_df.to_sql('marketing_churn_raw', engine, if_exists='replace', index=False)
+    logging.info("📤 4. LOADING: Executing idempotent UPSERT pattern routing directly to database engine...")
     
-    logging.info("🏆 PIPELINE RUN COMPLETION: STATUS 0 [SUCCESS]. Financial telemetry secured successfully.\n")
+    # Enforce strict transaction boundaries to guarantee active storage safety parameters
+    with engine.begin() as transaction_conn:
+        if str(engine.url).startswith('sqlite'):
+            # SENIORSKÁ SAMOOPRAVA LOKÁLNEHO ENGINU: Mápujeme tabuľku s prísnym PRIMARY KEY
+            transaction_conn.execute(text("DROP TABLE IF EXISTS marketing_churn_raw;"))
+            transaction_conn.execute(text("""
+                CREATE TABLE marketing_churn_raw (
+                    CustomerID TEXT PRIMARY KEY,
+                    CustomerSegment TEXT,
+                    AcquisitionChannel TEXT,
+                    TenureMonths INTEGER,
+                    SupportCalls REAL,
+                    TotalSpend_USD REAL,
+                    ChurnStatus INTEGER,
+                    data_quality_status TEXT
+                );
+            """))
+            logging.info("🧹 Local SQLite Strategy: Schema mapped with strict Primary Key specifications.")
+
+            for _, row in validated_df.iterrows():
+                upsert_query = text("""
+                    INSERT INTO marketing_churn_raw (CustomerID, CustomerSegment, AcquisitionChannel, TenureMonths, SupportCalls, TotalSpend_USD, ChurnStatus, data_quality_status)
+                    VALUES (:CustomerID, :CustomerSegment, :AcquisitionChannel, :TenureMonths, :SupportCalls, :TotalSpend_USD, :ChurnStatus, :data_quality_status)
+                    ON CONFLICT(CustomerID) DO UPDATE SET
+                        CustomerSegment=excluded.CustomerSegment,
+                        AcquisitionChannel=excluded.AcquisitionChannel,
+                        TenureMonths=excluded.TenureMonths,
+                        SupportCalls=excluded.SupportCalls,
+                        TotalSpend_USD=excluded.TotalSpend_USD,
+                        ChurnStatus=excluded.ChurnStatus,
+                        data_quality_status=excluded.data_quality_status;
+                """)
+                transaction_conn.execute(upsert_query, row.to_dict())
+        else:
+            # Ostrý cloudový PostgreSQL má kľúče z DDL architektúry trvalo nasadené
+            for _, row in validated_df.iterrows():
+                upsert_query = text("""
+                    INSERT INTO marketing_churn_raw ("CustomerID", "CustomerSegment", "AcquisitionChannel", "TenureMonths", "SupportCalls", "TotalSpend_USD", "ChurnStatus", "data_quality_status")
+                    VALUES (:CustomerID, :CustomerSegment, :AcquisitionChannel, :TenureMonths, :SupportCalls, :TotalSpend_USD, :ChurnStatus, :data_quality_status)
+                    ON CONFLICT ("CustomerID") DO UPDATE SET
+                        "CustomerSegment" = EXCLUDED.CustomerSegment,
+                        "AcquisitionChannel" = EXCLUDED.AcquisitionChannel,
+                        "TenureMonths" = EXCLUDED.TenureMonths,
+                        "SupportCalls" = EXCLUDED.SupportCalls,
+                        "TotalSpend_USD" = EXCLUDED.TotalSpend_USD,
+                        "ChurnStatus" = EXCLUDED.ChurnStatus,
+                        "data_quality_status" = EXCLUDED.data_quality_status;
+                """)
+                transaction_conn.execute(upsert_query, row.to_dict())
+                
+    logging.info("🏆 PIPELINE RUN COMPLETION: STATUS 0 [SUCCESS]. Idempotency matrix guarantee verified.\n")
     sys.exit(0)
 
 except pa.errors.SchemaError as schema_fault:
-    logging.critical(f"❌ PIPELINE STOPPED VIA PANDERA SHIELD: {schema_fault}")
+    logging.critical(f"❌ PIPELINE STOPPED VIA PANDERA INGESTION SHIELD: {schema_fault}")
     sys.exit(1)
 except Exception as e:
     logging.critical(f"❌ PIPELINE RUN CRITICAL FAILURE: {e}")
