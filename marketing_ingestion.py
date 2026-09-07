@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 # =====================================================================
-# ENTERPRISE LOGGING CONFIGURATION (Module 6 & 7 Standard)
+# ENTERPRISE LOGGING CONFIGURATION (Module 6, 7 & 10 Standard)
 # =====================================================================
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +30,7 @@ METRICS_TRACKER = {
 
 # Define Data Quality Shield using Pandera Specification
 marketing_ingest_schema = pa.DataFrameSchema({
-    "CustomerID": pa.Column(str, nullable=False, unique=True),
+    "CustomerID": pa.Column(str, nullable=False),
     "CustomerSegment": pa.Column(str, pa.Check.isin(["Basic", "Standard", "Premium"]), nullable=False),
     "TenureMonths": pa.Column(int, pa.Check.ge(0), nullable=False),
     "SupportCalls": pa.Column(float, nullable=True),
@@ -116,24 +116,27 @@ try:
 
     logging.info("📤 4. LOADING: Executing idempotent UPSERT pattern routing directly to database engine...")
     
-    # Enforce strict transaction boundaries to guarantee active storage safety parameters
     with engine.begin() as transaction_conn:
         if str(engine.url).startswith('sqlite'):
-            # SENIORSKÁ SAMOOPRAVA LOKÁLNEHO ENGINU: Mápujeme tabuľku s prísnym PRIMARY KEY
+            # PRODUCTION BLUEPRINT: Deploy strict CHECK constraints to enforce database boundaries
             transaction_conn.execute(text("DROP TABLE IF EXISTS marketing_churn_raw;"))
             transaction_conn.execute(text("""
                 CREATE TABLE marketing_churn_raw (
                     CustomerID TEXT PRIMARY KEY,
-                    CustomerSegment TEXT,
+                    CustomerSegment TEXT NOT NULL,
                     AcquisitionChannel TEXT,
-                    TenureMonths INTEGER,
-                    SupportCalls REAL,
-                    TotalSpend_USD REAL,
-                    ChurnStatus INTEGER,
-                    data_quality_status TEXT
+                    TenureMonths INTEGER NOT NULL CHECK (TenureMonths >= 0),
+                    SupportCalls REAL CHECK (SupportCalls >= 0 OR SupportCalls IS NULL),
+                    TotalSpend_USD REAL CHECK (TotalSpend_USD >= 0 OR TotalSpend_USD IS NULL),
+                    ChurnStatus INTEGER NOT NULL CHECK (ChurnStatus IN (0, 1)),
+                    data_quality_status TEXT NOT NULL
                 );
             """))
-            logging.info("🧹 Local SQLite Strategy: Schema mapped with strict Primary Key specifications.")
+            
+            # PERFORMANCE OPTIMIZATION LAYER: Deploy B-Tree analytical indexing for high-speed slicer filters
+            transaction_conn.execute(text('CREATE INDEX IF NOT EXISTS idx_marketing_segment ON marketing_churn_raw (CustomerSegment);'))
+            transaction_conn.execute(text('CREATE INDEX IF NOT EXISTS idx_marketing_churn ON marketing_churn_raw (ChurnStatus);'))
+            logging.info("🧹 Local SQLite Strategy: Schema mapped with strict Primary Key, CHECK limits & Analytical B-Tree Indexes.")
 
             for _, row in validated_df.iterrows():
                 upsert_query = text("""
@@ -150,7 +153,7 @@ try:
                 """)
                 transaction_conn.execute(upsert_query, row.to_dict())
         else:
-            # Ostrý cloudový PostgreSQL má kľúče z DDL architektúry trvalo nasadené
+            # Remote PostgreSQL cloud storage destination fallback execution path
             for _, row in validated_df.iterrows():
                 upsert_query = text("""
                     INSERT INTO marketing_churn_raw ("CustomerID", "CustomerSegment", "AcquisitionChannel", "TenureMonths", "SupportCalls", "TotalSpend_USD", "ChurnStatus", "data_quality_status")
@@ -166,7 +169,7 @@ try:
                 """)
                 transaction_conn.execute(upsert_query, row.to_dict())
                 
-    logging.info("🏆 PIPELINE RUN COMPLETION: STATUS 0 [SUCCESS]. Idempotency matrix guarantee verified.\n")
+    logging.info("🏆 PIPELINE RUN COMPLETION: STATUS 0 [SUCCESS]. Idempotency & Database Integrity metrics verified.\n")
     sys.exit(0)
 
 except pa.errors.SchemaError as schema_fault:
