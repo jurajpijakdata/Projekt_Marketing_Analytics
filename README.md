@@ -18,6 +18,7 @@ To meet the rigorous data quality, error boundaries, and monitoring standards re
 4. **Self-Healing Pre-Load Layer:** Coerces incoming data structure alignments (e.g., dynamically removing alphanumeric grouping separators or currency text elements) prior to schema evaluation, eliminating unexpected type-mismatch crashes.
 5. **Decoupled Unit Testing (`pytest`):** Core transformation math and data cleaning algorithms are fully decoupled into an independent logic module (`marketing_parser.py`) to eliminate environmental connection dependencies, allowing rapid parameterized testing execution.
 6. **Declarative Schema Validation (`pandera`):** Screens the fully aligned, cleaned, and healed dataframe for missing attributes, duplicate entity constraints, and boundary keys before writing records downstream.
+7. **Database Integrity Shields & Indexing (Module 10):** The local storage engine implements strict programmatic relational schemas featuring active **`CHECK` constraints** (`TenureMonths >= 0`, `ChurnStatus IN (0,1)`) to prevent corrupted records from violating boundaries, powered by optimized **B-Tree analytical indexes** directly onto dynamic query filtering nodes (`CustomerSegment`, `ChurnStatus`) to eliminate sequential table scans.
 
 ---
 
@@ -30,11 +31,29 @@ To meet the rigorous data quality, error boundaries, and monitoring standards re
 
 ---
 
+## 🧮 High-Performance BI Semantic Layer (Advanced DAX Layout)
+To reconstruct and surface the injected behavioral signals flawlessly, the semantic model explicitly deprecates implicit aggregations and deploys an advanced **DAX Date Dimension (`dim_date`)** via `CALENDARAUTO()`. High-precision KPIs enforce strict filter context modifications using variables (`VAR`) and the `CALCULATE` matrix engine:
+* **Segment Attrition Velocity (High-Risk Churn Rate):** Dynamically isolates the customer attrition footprint inside specific risk zones using context-transition overrides:
+  ```dax
+  High Risk Segment Churn % = 
+  VAR TotalBasicCalls = CALCULATE(COUNT(marketing_churn_raw[CustomerID]), marketing_churn_raw[CustomerSegment] = "Basic", marketing_churn_raw[SupportCalls] >= 5)
+  VAR ChurnedBasicCalls = CALCULATE(COUNT(marketing_churn_raw[CustomerID]), marketing_churn_raw[CustomerSegment] = "Basic", marketing_churn_raw[SupportCalls] >= 5, marketing_churn_raw[ChurnStatus] = 1)
+  RETURN DIVIDE(ChurnedBasicCalls, TotalBasicCalls, BLANK())
+  ```
+* **Cumulative Marketing Cashflow (Running Total Spend):** Tracks historical campaign budget allocation totals across dynamic time series horizons:
+  ```dax
+  Cumulative Spend USD = 
+  VAR MaxDate = MAX('dim_date'[Date])
+  RETURN CALCULATE(SUM(marketing_churn_raw[TotalSpend_USD]), FILTER(ALL('dim_date'), 'dim_date'[Date] <= MaxDate))
+  ```
+
+---
+
 ## 🛠️ Tech Stack & Pipeline Configurations
 - **Data Engineering:** Python (Pandas) utilizing strict standalone self-healing data normalizers, robust `logging` stream handlers, and structural schema validation wrappers via `pandera.pandas`. High-precision monetary metrics utilize `decimal.Decimal` logic to prevent floating-point drifting.
 - **Testing Suite:** `pytest` executing parametrized table-driven unit tests to simulate and intercept data edge cases.
 - **Database Storage Cluster:** PostgreSQL (with automated fallback connection routing to a local standalone SQLite file database).
-- **BI Reporting Layer:** Power BI Desktop tailored with strict algorithmic validation tests and precise DAX performance metrics.
+- **BI Reporting Layer:** Power BI Desktop tailored with an independent **DAX Star Schema model**, explicit evaluation variables (`VAR`), and context-modifying filter metrics (`CALCULATE`) for time-series intelligence tracking.
 
 ---
 
