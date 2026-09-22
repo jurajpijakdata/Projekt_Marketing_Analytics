@@ -1,16 +1,10 @@
 import pytest
 import pandas as pd
 from decimal import Decimal
-# Importujeme funkciu z našej novej čistej knižnice
-from marketing_parser import clean_numeric_spend
-
-def retention_risk_profiler(churn_status, support_calls):
-    """Categorizes profiles based on deterministic churn vector rules."""
-    if churn_status == 1: 
-        return 'Lost Customer (Already Left)'
-    elif support_calls >= 4: 
-        return 'Critical High Attention Zone'
-    return 'Loyal Segment / Low Risk'
+# Import the actual production functions, not local copies -- so these tests
+# actually protect the code that runs in marketing_ingestion.py and
+# marketing_bi_layer.py, instead of a clone that can silently drift from it.
+from marketing_parser import clean_numeric_spend, retention_risk_profiler
 
 
 # =====================================================================
@@ -21,6 +15,10 @@ def retention_risk_profiler(churn_status, support_calls):
     ("150.50", 150.50),
     ("2,500.75", 2500.75),
     ("  45.00  ", 45.00),
+    ("1,234", 1234.0),
+    ("1234,56", 1234.56),
+    ("1,234,567", 1234567.0),
+    ("-50.00", None),
     ("", None),
     ("UNKNOWN", None),
 ])
@@ -34,3 +32,5 @@ def test_retention_risk_profiler_logic():
     assert retention_risk_profiler(1, 6) == 'Lost Customer (Already Left)'
     assert retention_risk_profiler(0, 4) == 'Critical High Attention Zone'
     assert retention_risk_profiler(0, 2) == 'Loyal Segment / Low Risk'
+    assert retention_risk_profiler(0, None) == 'Unknown Risk (Incomplete Data)'
+    assert retention_risk_profiler(0, float('nan')) == 'Unknown Risk (Incomplete Data)'
