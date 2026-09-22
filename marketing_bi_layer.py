@@ -5,6 +5,13 @@ import pandas as pd
 from pathlib import Path
 from sqlalchemy import create_engine
 
+from marketing_parser import retention_risk_profiler
+
+# Force UTF-8 stdout so the emoji in the log messages below never crash a
+# non-interactive run on Windows (its default console codepage can't encode
+# them, which otherwise silently drops all logging output).
+sys.stdout.reconfigure(encoding="utf-8")
+
 # =====================================================================
 # ENTERPRISE LOGGING CONFIGURATION (Module 6 Standard)
 # =====================================================================
@@ -50,15 +57,13 @@ try:
     bi_df['tenure_months'] = raw_df['TenureMonths']
     bi_df['total_spend'] = raw_df['TotalSpend_USD']
     
-    # Advanced logic segmentation showing analytical capability to clients
-    def retention_risk_profiler(row):
-        if row['ChurnStatus'] == 1: 
-            return 'Lost Customer (Already Left)'
-        elif row['SupportCalls'] >= 4: 
-            return 'Critical High Attention Zone'
-        return 'Loyal Segment / Low Risk'
-        
-    bi_df['retention_risk_tier'] = raw_df.apply(retention_risk_profiler, axis=1)
+    # Uses the same shared, tested classification function as test_marketing.py
+    # imports -- this used to be a second copy defined inline here, which meant
+    # the test suite was verifying a clone that could silently drift from what
+    # this script actually runs in production.
+    bi_df['retention_risk_tier'] = raw_df.apply(
+        lambda row: retention_risk_profiler(row['ChurnStatus'], row['SupportCalls']), axis=1
+    )
     
     # Export permanent BI Layer Target Output
     bi_df.to_sql('v_marketing_retention_analytics', engine, if_exists='replace', index=False)

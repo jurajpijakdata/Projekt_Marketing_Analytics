@@ -1,108 +1,99 @@
-# 📊 Customer Marketing & Retention Analytics - System Simulation Framework
+# Customer Marketing & Retention Analytics
 
-An end-to-end data engineering and business intelligence framework designed to simulate high-volume customer behavior patterns within a B2C application layer. This system utilizes a dedicated synthetic generator to inject specific behavioral anomalies and churn vectors, proving that the Python data cleansing layer, PostgreSQL/SQLite warehouse tables, and Power BI dashboards can accurately capture, reconstruct, and surface target business signals.
-
-## 🚀 Interactive Performance Demo
-Below is a live interaction capture of the simulated production dashboard, demonstrating dynamic filtering across pre-calculated retention risk zones and metrics.
+[![tests](https://github.com/jurajpijakdata/Projekt_Marketing_Analytics/actions/workflows/tests.yml/badge.svg)](https://github.com/jurajpijakdata/Projekt_Marketing_Analytics/actions/workflows/tests.yml)
 
 ![Dashboard Interaction Demo](dashboard_demo.gif)
 
----
+An end-to-end data engineering pipeline that simulates customer behavior for a B2C subscription business, cleans and validates it, loads it into a relational warehouse, and builds a retention-risk reporting layer on top -- the kind of pipeline that would sit behind a churn dashboard.
 
-## 🏗️ Architecture Design: Enterprise Observability & Self-Healing Layout
-To meet the rigorous data quality, error boundaries, and monitoring standards required in production-grade data platforms, the framework deploys a strict multi-layered engineering and monitoring architecture:
+All data in this project is synthetically generated with a fixed random seed, so results are fully reproducible without using any real customer data.
 
-1. **Enterprise Logging Framework (`logging`):** Replaced legacy, unmonitored standard stdout text prints with a formal Python logging machine. Events, warning tracks, and subsystem errors are systematically piped across precise structural states (`INFO`, `WARNING`, `CRITICAL`) to allow direct parsing by cloud orchestrators.
-2. **First-Class Rejection Metrics & Quarantine:** Malformed textual data corruptions are dynamically intercepted. Instead of masks using silent zero conversions that distort accounting aggregates downstream, failed parameters are cleanly cast to explicit `NULL` types and tracked as a primary first-class data quality metric.
-3. **Automated Alerting Thresholds (Fail-Fast):** Incorporates an active runtime processing boundary constraint. If the data ingestion pipeline encounters a critical row rejection rate greater than **5.0%** of the batch payload volume, the entire framework halts execution immediately and throws a hard termination state (`sys.exit(1)`) to trigger modern orchestrator alerts.
-4. **Self-Healing Pre-Load Layer:** Coerces incoming data structure alignments (e.g., dynamically removing alphanumeric grouping separators or currency text elements) prior to schema evaluation, eliminating unexpected type-mismatch crashes.
-5. **Decoupled Unit Testing (`pytest`):** Core transformation math and data cleaning algorithms are fully decoupled into an independent logic module (`marketing_parser.py`) to eliminate environmental connection dependencies, allowing rapid parameterized testing execution.
-6. **Declarative Schema Validation (`pandera`):** Screens the fully aligned, cleaned, and healed dataframe for missing attributes, duplicate entity constraints, and boundary keys before writing records downstream.
-7. **Database Integrity Shields & Indexing (Module 10):** The local storage engine implements strict programmatic relational schemas featuring active **`CHECK` constraints** (`TenureMonths >= 0`, `ChurnStatus IN (0,1)`) to prevent corrupted records from violating boundaries, powered by optimized **B-Tree analytical indexes** directly onto dynamic query filtering nodes (`CustomerSegment`, `ChurnStatus`) to eliminate sequential table scans.
+## How it's built
 
----
+**Idempotent loads.** The pipeline uses `INSERT ... ON CONFLICT (CustomerID) DO UPDATE` instead of `replace` or blind `append`, so it can be re-run on the same data without creating duplicates.
 
-## 🔗 Algorithmic Data Generation & Disclosure
-* **Pipeline Mechanism:** All analytical data is programmatically provisioned using the native script `marketing_data_gen.py` and saved inside the `data_raw` storage layer. 
-* **Injected Anomalies:** To test the robustness of the ingestion pipelines, the engine injects explicit string corruptions (`'UNKNOWN'`) into numerical vectors and missing markers (`'NaN'`) into financial attributes.
-* **Deterministic Churn Signal:** The script seeds randomness to guarantee a fixed benchmark layout across test environments:
-  * **Global Churn Target:** Enforced at exactly **16.94%** (representing 2,118 lost profiles out of a 12,500 customer matrix).
-  * **Injected Basic Segment Risk:** An intentional high-churn loop simulates a **35.57%** customer attrition rate triggered specifically when `SupportCalls >= 5` inside the `Basic` customer tier.
+**One source of truth for the transformation logic.** Spend parsing and retention-risk classification both live in a single tested module (`marketing_parser.py`), imported by both `marketing_ingestion.py` and `marketing_bi_layer.py`, so a given raw value or customer record is interpreted the same way no matter which script touches it.
 
----
+**Locale-aware number parsing.** `clean_numeric_spend` handles both US-style figures ("2,500.75") and a plain European decimal comma ("1234,56"). A lone comma with no decimal point is genuinely ambiguous between the two conventions, so it's disambiguated by digit count (two digits after the comma reads as cents; anything else is treated as a thousands separator) rather than guessed at -- a naive guess would silently turn a plain thousands-formatted number like "1,234" into 1.234.
 
-## 🧮 High-Performance BI Semantic Layer (Advanced DAX Layout)
-To reconstruct and surface the injected behavioral signals flawlessly, the semantic model explicitly deprecates implicit aggregations and deploys an advanced **DAX Date Dimension (`dim_date`)** via `CALENDARAUTO()`. High-precision KPIs enforce strict filter context modifications using variables (`VAR`) and the `CALCULATE` matrix engine:
-* **Segment Attrition Velocity (High-Risk Churn Rate):** Dynamically isolates the customer attrition footprint inside specific risk zones using context-transition overrides:
-  ```dax
-  High Risk Segment Churn % = 
-  VAR TotalBasicCalls = CALCULATE(COUNT(marketing_churn_raw[CustomerID]), marketing_churn_raw[CustomerSegment] = "Basic", marketing_churn_raw[SupportCalls] >= 5)
-  VAR ChurnedBasicCalls = CALCULATE(COUNT(marketing_churn_raw[CustomerID]), marketing_churn_raw[CustomerSegment] = "Basic", marketing_churn_raw[SupportCalls] >= 5, marketing_churn_raw[ChurnStatus] = 1)
-  RETURN DIVIDE(ChurnedBasicCalls, TotalBasicCalls, BLANK())
-  ```
-* **Cumulative Marketing Cashflow (Running Total Spend):** Tracks historical campaign budget allocation totals across dynamic time series horizons:
-  ```dax
-  Cumulative Spend USD = 
-  VAR MaxDate = MAX('dim_date'[Date])
-  RETURN CALCULATE(SUM(marketing_churn_raw[TotalSpend_USD]), FILTER(ALL('dim_date'), 'dim_date'[Date] <= MaxDate))
-  ```
+**Quarantine over silent failure.** Rows with unparseable spend or support-call data get `NULL` and a `data_quality_status = 'UNKNOWN'` flag instead of a false zero. If more than 5% of a run's rows fail validation, the pipeline stops and exits non-zero rather than loading a bad batch quietly. A customer whose support-call count was quarantined this way is also called out explicitly in the retention-risk tier ("Unknown Risk (Incomplete Data)") instead of being silently folded into the low-risk bucket.
 
----
+**Schema validation.** `pandera` checks the shape and types of the data before anything is written downstream.
 
-## 🛠️ Tech Stack & Pipeline Configurations
-- **Data Engineering:** Python (Pandas) utilizing strict standalone self-healing data normalizers, robust `logging` stream handlers, and structural schema validation wrappers via `pandera.pandas`. High-precision monetary metrics utilize `decimal.Decimal` logic to prevent floating-point drifting.
-- **Testing Suite:** `pytest` executing parametrized table-driven unit tests to simulate and intercept data edge cases.
-- **Database Storage Cluster:** PostgreSQL (with automated fallback connection routing to a local standalone SQLite file database).
-- **BI Reporting Layer:** Power BI Desktop tailored with an independent **DAX Star Schema model**, explicit evaluation variables (`VAR`), and context-modifying filter metrics (`CALCULATE`) for time-series intelligence tracking.
+**Tested business logic.** The parsing and classification logic is isolated in its own module and covered by a parametrized pytest suite, plus integration tests that run the ingestion and BI scripts end to end against a clean environment. Tests run automatically in CI on every push (see the badge above).
 
----
+**Bulk loads.** The load step batches rows into chunked bulk upserts (1,000 rows per round-trip) rather than issuing one database call per row.
 
-## 📁 Repository Directory Structure
+## Dataset
+
+`marketing_data_gen.py` deterministically generates 12,500 synthetic customer records (seeded, so re-running it produces byte-identical output), with injected missing values and text corruption to exercise the self-healing/quarantine logic. The full dataset is committed to `data_raw/customer_churn_dataset.csv` so the repo runs immediately without regenerating it; re-run the generator only if you want to confirm the reproducibility yourself. `data_raw/customer_churn_dataset_sample.csv` (100 rows) is used as fixture data for the fast integration test suite, so tests don't have to process the full 12,500-row file on every run.
+
+Two figures worth calling out about the generated data: the global churn rate lands at 16.94% (verified against the actual generated file), and customers in the `Basic` segment with 5+ support calls churn at **82.2%** -- a very deliberate signal, since the generator assigns that group an explicit 82% churn probability.
+
+## Database layer
+
+`create_tables.sql` creates the `marketing_churn_raw` table and a Row-Level Security policy for the `authenticated` Supabase role. Run it once against a fresh Postgres/Supabase database before pointing `marketing_ingestion.py` at real credentials.
+
+## Repository structure
 
 ```text
 Projekt_Marketing_Analytics/
-│
 ├── data_raw/
-│   ├── customer_churn_dataset.csv         # Full Production Raw Records
-│   └── customer_churn_dataset_sample.csv  # Custom QA Sample Framework
-│
-├── marketing_parser.py                    # Pure Decoupled Parsing & Business Logic (100% Testable)
-├── marketing_ingestion.py                 # ETL Pipeline with Integrated Self-Healing, Logging & Pandera
-├── marketing_bi_layer.py                  # BI Semantic Transformation Layer with Production Logging Handlers
-├── marketing_data_gen.py                  # Synthetic Data Generation Script with Structural Enterprise Logs
-├── test_marketing.py                      # Parametrized Pytest Suite Suite & Automated Crash Simulator
-├── requirements.txt                       # Locked Software Dependency Layout Scheme
-└── README.md                              # Enterprise Systems Documentation
+│   ├── customer_churn_dataset.csv          # Full generated dataset (12,500 rows)
+│   └── customer_churn_dataset_sample.csv   # 100-row fixture used by the integration tests
+├── marketing_parser.py                     # Parsing & classification logic (unit tested)
+├── marketing_data_gen.py                   # Deterministic synthetic data generator
+├── marketing_ingestion.py                  # Loads validated data into Postgres (or local SQLite fallback)
+├── marketing_bi_layer.py                   # Builds the retention-risk reporting table from the loaded data
+├── test_marketing.py                       # Pytest suite for marketing_parser.py
+├── test_marketing_pipeline.py              # Integration tests that run the pipeline end to end
+├── create_tables.sql                       # Postgres schema and RLS policy
+├── requirements.txt                        # Pinned dependencies
+├── .github/workflows/tests.yml             # CI: runs the test suite on every push/PR
+├── LICENSE
+└── README.md
 ```
 
----
+## Quick start
 
-## 🚀 Quick Start (Clone & Run Standard)
+### 1. Install dependencies
 
-### 1. Deploy the Independent Software Stack
-Install the standardized software dependencies inside your execution terminal:
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Run Automated Code Testing
-Execute the validation suite with the built-in crash-test vectors to verify compliance:
-```powershell
-pytest test_marketing.py -v
+### 2. Run the test suite
+
+```bash
+pytest -v
 ```
 
-### 3. Generate the Simulated Dataset Payload
-Execute the synthetic behavioral data distribution script to write raw matrices into the `data_raw` directory:
-```powershell
-python marketing_data_gen.py
-```
+### 3. (Optional) Configure database credentials
 
-### 4. Verify Ingestion & Analytical Reporting Layers
-Launch the automated cleaning, ingestion, and BI analytics modeling scripts sequentially:
-```powershell
+Copy `.env.example` to `.env` and fill in your Supabase/Postgres connection details, then run `create_tables.sql` against that database once.
+
+If you skip this step, `marketing_ingestion.py` automatically falls back to a local SQLite database, so you can run everything end to end with no cloud credentials.
+
+### 4. Run the pipeline
+
+```bash
 python marketing_ingestion.py
 python marketing_bi_layer.py
 ```
 
+Loads the dataset into your configured database (or the local SQLite fallback), then builds the `v_marketing_retention_analytics` reporting table on top of it.
+
+### 5. (Optional) Regenerate the dataset
+
+```bash
+python marketing_data_gen.py
+```
+
+Not required to run the pipeline -- the generated dataset is already committed -- but useful to confirm the generator is fully deterministic.
+
+## Data protection note
+
+This project uses only synthetic, randomly generated data -- no real customer information is processed anywhere in the pipeline.
+
 ---
-*Engineered under the UpDataLogic Simulation Framework for verifiable, transparent, and reproducible system testing models.*
+*Engineered under the UpDataLogic framework for transparent, honest, and reproducible analytics pipelines.*

@@ -7,6 +7,13 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
+from marketing_parser import clean_numeric_spend
+
+# Force UTF-8 stdout so the emoji in the log messages below never crash a
+# non-interactive run on Windows (its default console codepage can't encode
+# them, which otherwise silently drops all logging output).
+sys.stdout.reconfigure(encoding="utf-8")
+
 # =====================================================================
 # ENTERPRISE LOGGING CONFIGURATION (Module 6, 7 & 10 Standard)
 # =====================================================================
@@ -21,6 +28,8 @@ logging.info("🚀 Starting UpDataLogic Marketing Ingestion Layer (Idempotent Pr
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "data_raw" / "customer_churn_dataset.csv"
 ENV_FILE = BASE_DIR / ".env"
+
+CHUNK_SIZE = 1000
 
 METRICS_TRACKER = {
     "total_records_extracted": 0,
@@ -47,10 +56,10 @@ try:
         DB_HOST = os.getenv("DB_HOST")
         DB_PORT = os.getenv("DB_PORT", "6543")
         DB_NAME = os.getenv("DB_NAME")
-        
+
         if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_NAME]):
             raise ValueError("Incomplete cloud credentials.")
-            
+
         connection_string = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         engine = create_engine(connection_string)
         with engine.connect() as conn:
@@ -75,11 +84,11 @@ try:
 
     logging.info(f"📥 1. Extraction: Reading records from: {DATA_FILE.name}...")
     df = pd.read_csv(DATA_FILE, dtype={"CustomerID": str}, low_memory=False)
-    
+
     METRICS_TRACKER["total_records_extracted"] = len(df)
-    
+
     logging.info("⏳ 2. Transformation: Running self-healing normalizers...")
-    
+
     def self_heal_support_calls(value, row_idx):
         if pd.isna(value) or str(value).strip() in ('', 'UNKNOWN'):
             return None
@@ -88,34 +97,33 @@ try:
         except (ValueError, TypeError):
             return None
 
-    def clean_numeric_spend(value):
-        if pd.isna(value) or str(value).strip() in ('', 'NaN', 'UNKNOWN'):
-            return None
-        clean_str = str(value).strip().replace(',', '')
-        try:
-            return float(clean_str)
-        except ValueError:
-            return None
-
+    # Uses the same shared, tested parser as marketing_bi_layer.py's imports so
+    # a given raw spend value is interpreted identically no matter which script
+    # processes it -- this used to be a second, simpler copy defined inline
+    # here, which only stripped commas and silently disagreed with
+    # marketing_parser.py's own European-decimal handling.
     df['SupportCalls'] = [self_heal_support_calls(val, idx) for idx, val in enumerate(df['SupportCalls'])]
     df['TotalSpend_USD'] = df['TotalSpend_USD'].apply(clean_numeric_spend)
-    
+
     df['data_quality_status'] = df[['TotalSpend_USD', 'SupportCalls']].isnull().any(axis=1).map({True: 'UNKNOWN', False: 'CLEAN'})
-    
+
     METRICS_TRACKER["rejected_records_critical"] = int(df['TotalSpend_USD'].isna().sum())
     METRICS_TRACKER["successfully_healed_records"] = METRICS_TRACKER["total_records_extracted"] - METRICS_TRACKER["rejected_records_critical"]
 
     logging.info("🛡️ 3. Validation: Running declarative structural checks via Pandera...")
     validated_df = marketing_ingest_schema.validate(df)
-    
+
     rejection_rate = (METRICS_TRACKER["rejected_records_critical"] / METRICS_TRACKER["total_records_extracted"]) * 100
     logging.info(f"📊 DATA QUALITY METRICS: Clean: {METRICS_TRACKER['successfully_healed_records']:,} | Rejections: {METRICS_TRACKER['rejected_records_critical']:,} ({rejection_rate:.2f}%)")
-    
+
     if rejection_rate > 5.0:
         raise ValueError(f"Pipeline stopped. Rejection rate {rejection_rate:.2f}% breached 5.0% limit.")
 
     logging.info("📤 4. LOADING: Executing idempotent UPSERT pattern routing directly to database engine...")
-    
+
+    all_columns = ['CustomerID', 'CustomerSegment', 'AcquisitionChannel', 'TenureMonths', 'SupportCalls', 'TotalSpend_USD', 'ChurnStatus', 'data_quality_status']
+    records = validated_df[all_columns].to_dict(orient='records')
+
     with engine.begin() as transaction_conn:
         if str(engine.url).startswith('sqlite'):
             # PRODUCTION BLUEPRINT: Deploy strict CHECK constraints to enforce database boundaries
@@ -132,44 +140,50 @@ try:
                     data_quality_status TEXT NOT NULL
                 );
             """))
-            
+
             # PERFORMANCE OPTIMIZATION LAYER: Deploy B-Tree analytical indexing for high-speed slicer filters
             transaction_conn.execute(text('CREATE INDEX IF NOT EXISTS idx_marketing_segment ON marketing_churn_raw (CustomerSegment);'))
             transaction_conn.execute(text('CREATE INDEX IF NOT EXISTS idx_marketing_churn ON marketing_churn_raw (ChurnStatus);'))
             logging.info("🧹 Local SQLite Strategy: Schema mapped with strict Primary Key, CHECK limits & Analytical B-Tree Indexes.")
 
-            for _, row in validated_df.iterrows():
-                upsert_query = text("""
-                    INSERT INTO marketing_churn_raw (CustomerID, CustomerSegment, AcquisitionChannel, TenureMonths, SupportCalls, TotalSpend_USD, ChurnStatus, data_quality_status)
-                    VALUES (:CustomerID, :CustomerSegment, :AcquisitionChannel, :TenureMonths, :SupportCalls, :TotalSpend_USD, :ChurnStatus, :data_quality_status)
-                    ON CONFLICT(CustomerID) DO UPDATE SET
-                        CustomerSegment=excluded.CustomerSegment,
-                        AcquisitionChannel=excluded.AcquisitionChannel,
-                        TenureMonths=excluded.TenureMonths,
-                        SupportCalls=excluded.SupportCalls,
-                        TotalSpend_USD=excluded.TotalSpend_USD,
-                        ChurnStatus=excluded.ChurnStatus,
-                        data_quality_status=excluded.data_quality_status;
-                """)
-                transaction_conn.execute(upsert_query, row.to_dict())
+            upsert_query = text("""
+                INSERT INTO marketing_churn_raw (CustomerID, CustomerSegment, AcquisitionChannel, TenureMonths, SupportCalls, TotalSpend_USD, ChurnStatus, data_quality_status)
+                VALUES (:CustomerID, :CustomerSegment, :AcquisitionChannel, :TenureMonths, :SupportCalls, :TotalSpend_USD, :ChurnStatus, :data_quality_status)
+                ON CONFLICT(CustomerID) DO UPDATE SET
+                    CustomerSegment=excluded.CustomerSegment,
+                    AcquisitionChannel=excluded.AcquisitionChannel,
+                    TenureMonths=excluded.TenureMonths,
+                    SupportCalls=excluded.SupportCalls,
+                    TotalSpend_USD=excluded.TotalSpend_USD,
+                    ChurnStatus=excluded.ChurnStatus,
+                    data_quality_status=excluded.data_quality_status;
+            """)
+            for i in range(0, len(records), CHUNK_SIZE):
+                transaction_conn.execute(upsert_query, records[i:i + CHUNK_SIZE])
         else:
-            # Remote PostgreSQL cloud storage destination fallback execution path
-            for _, row in validated_df.iterrows():
-                upsert_query = text("""
-                    INSERT INTO marketing_churn_raw ("CustomerID", "CustomerSegment", "AcquisitionChannel", "TenureMonths", "SupportCalls", "TotalSpend_USD", "ChurnStatus", "data_quality_status")
-                    VALUES (:CustomerID, :CustomerSegment, :AcquisitionChannel, :TenureMonths, :SupportCalls, :TotalSpend_USD, :ChurnStatus, :data_quality_status)
-                    ON CONFLICT ("CustomerID") DO UPDATE SET
-                        "CustomerSegment" = EXCLUDED.CustomerSegment,
-                        "AcquisitionChannel" = EXCLUDED.AcquisitionChannel,
-                        "TenureMonths" = EXCLUDED.TenureMonths,
-                        "SupportCalls" = EXCLUDED.SupportCalls,
-                        "TotalSpend_USD" = EXCLUDED.TotalSpend_USD,
-                        "ChurnStatus" = EXCLUDED.ChurnStatus,
-                        "data_quality_status" = EXCLUDED.data_quality_status;
-                """)
-                transaction_conn.execute(upsert_query, row.to_dict())
-                
-    logging.info("🏆 PIPELINE RUN COMPLETION: STATUS 0 [SUCCESS]. Idempotency & Database Integrity metrics verified.\n")
+            # Remote PostgreSQL cloud storage destination fallback execution path.
+            # Both sides of the SET clause must be quoted: EXCLUDED is a
+            # pseudo-table with the same (case-sensitive) column names as the
+            # real table, and an unquoted identifier gets folded to lowercase by
+            # Postgres, which then fails to match a quoted mixed-case column
+            # like "CustomerSegment" -- this used to break every real Postgres
+            # run with "column excluded.customersegment does not exist".
+            upsert_query = text("""
+                INSERT INTO marketing_churn_raw ("CustomerID", "CustomerSegment", "AcquisitionChannel", "TenureMonths", "SupportCalls", "TotalSpend_USD", "ChurnStatus", "data_quality_status")
+                VALUES (:CustomerID, :CustomerSegment, :AcquisitionChannel, :TenureMonths, :SupportCalls, :TotalSpend_USD, :ChurnStatus, :data_quality_status)
+                ON CONFLICT ("CustomerID") DO UPDATE SET
+                    "CustomerSegment" = EXCLUDED."CustomerSegment",
+                    "AcquisitionChannel" = EXCLUDED."AcquisitionChannel",
+                    "TenureMonths" = EXCLUDED."TenureMonths",
+                    "SupportCalls" = EXCLUDED."SupportCalls",
+                    "TotalSpend_USD" = EXCLUDED."TotalSpend_USD",
+                    "ChurnStatus" = EXCLUDED."ChurnStatus",
+                    "data_quality_status" = EXCLUDED."data_quality_status";
+            """)
+            for i in range(0, len(records), CHUNK_SIZE):
+                transaction_conn.execute(upsert_query, records[i:i + CHUNK_SIZE])
+
+    logging.info(f"🏆 PIPELINE RUN COMPLETION: STATUS 0 [SUCCESS]. {len(records):,} rows upserted. Idempotency & Database Integrity metrics verified.\n")
     sys.exit(0)
 
 except pa.errors.SchemaError as schema_fault:
